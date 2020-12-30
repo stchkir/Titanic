@@ -10,9 +10,9 @@ library("here")
 path <- here()
 setwd(path)
 
-train <- read.csv("train.csv")
-test <- read.csv("test.csv")
-example <- read.csv("gender_submission.csv")
+test <- read.csv("https://raw.githubusercontent.com/stchkir/Titanic/master/test.csv")
+train <- read.csv("https://raw.githubusercontent.com/stchkir/Titanic/master/train.csv")
+example <- read.csv("https://raw.githubusercontent.com/stchkir/Titanic/master/gender_submission.csv")
 
 train_origin <- train
 
