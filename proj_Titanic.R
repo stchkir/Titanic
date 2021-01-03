@@ -14,6 +14,7 @@ test <- read.csv("https://raw.githubusercontent.com/stchkir/Titanic/master/test.
 train <- read.csv("https://raw.githubusercontent.com/stchkir/Titanic/master/train.csv")
 example <- read.csv("https://raw.githubusercontent.com/stchkir/Titanic/master/gender_submission.csv")
 
+test_origin <- test
 train_origin <- train
 
 ###### DATA EXPLORATION AND CLEANING #####
@@ -59,11 +60,13 @@ train %>% ggplot(aes(Age,Fare)) +
   ylim(0,200)
 
 ###### DATA CLEANING TRAIN SET #####
-# Change factors to chr if needed
-train <- train %>% mutate(Name=as.character(Name),
-                          Ticket=as.character(Ticket),
-                          Cabin=as.character(Cabin),
-                          Embarked=as.character(Embarked))
+# Define PClass and Survived as Factor for Classification
+train <- train %>% mutate(Pclass=factor(Pclass),
+                          Survived=factor(Survived))
+
+# Identify factor levels
+Pclass.levels <- levels(train$Pclass)
+Embarked.levels <- levels(train$Embarked)
 
 # Calculate median Age as average per Pclass and Sex
 age_medians <- train %>% filter(!is.na(Age)) %>%
@@ -81,14 +84,10 @@ print(fare_medians)
 train <- train %>% left_join(y=age_medians,by=c("Pclass","Sex"))
 train <- train %>% mutate(Age = ifelse(is.na(Age),Age_median,Age))
 
-# Define Survived as Factor for Classification
-train <- train %>% mutate(Survived=as.factor(Survived))
-
 ###### DATA CLEANING TEST SET #####
-test <- test %>% mutate(Name=as.character(Name),
-                          Ticket=as.character(Ticket),
-                          Cabin=as.character(Cabin),
-                          Embarked=as.character(Embarked))
+# Define factor levels similar to train set
+test <- test %>% mutate(Pclass=factor(Pclass, levels=Pclass.levels),
+                        Embarked=factor(Embarked, levels=Embarked.levels))
 
 # Replace NAs with median Age per group
 test <- test %>% left_join(y=age_medians,by=c("Pclass","Sex"))
@@ -111,9 +110,18 @@ Survived_predict <- data.frame(sex=example)
 
 # Use k nearest neighbors
 knn <- train(Survived ~ Pclass+Sex+Age, method = "knn", data = train,
-             tuneGrid = data.frame(k = seq(5, 35, 5))
+             tuneGrid = data.frame(k = seq(1, 20, 1))
              )
              
 knn$results
 
 Survived_predict <- Survived_predict %>% mutate(knn=predict(knn, test, type = "raw"))
+
+# Use decision trees
+tree <- train(Survived ~ Pclass+Sex+Age, method = "rpart", data = train)
+
+tree$results
+
+Survived_predict <- Survived_predict %>% mutate(tree=predict(tree, test, type = "raw"))
+
+
