@@ -5,6 +5,7 @@ library("tidyverse")
 library("caret")
 library("RColorBrewer")
 library("here")
+library("rpart.plot")
 
 ###### DATA ###########
 path <- here()
@@ -107,21 +108,38 @@ sex_predict <- train %>% select(Survived,Sex) %>%
 mean(sex_predict$predict==train$Survived)
 
 Survived_predict <- data.frame(sex=example)
-
+Survived_predict <- Survived_predict %>% rename(PassengerId=sex.PassengerId,
+                                                Survived=sex.Survived)
 # Use k nearest neighbors
-knn <- train(Survived ~ Pclass+Sex+Age, method = "knn", data = train,
+knn.model <- train(Survived ~ Pclass+Sex+Age, method = "knn", data = train,
              tuneGrid = data.frame(k = seq(1, 20, 1))
              )
              
-knn$results
+knn.model$results
 
-Survived_predict <- Survived_predict %>% mutate(knn=predict(knn, test, type = "raw"))
+Survived_predict <- Survived_predict %>% mutate(knn=predict(knn.model, test, type = "raw"))
 
 # Use decision trees
-tree <- train(Survived ~ Pclass+Sex+Age, method = "rpart", data = train)
+tree.model <- train(Survived ~ Pclass+Sex+Age, method = "rpart", data = train,
+              tuneGrid = data.frame(cp = seq(0.002, 0.02, 0.002)))
 
-tree$results
+tree.model$results
+rpart.plot(tree.model$finalModel)
 
-Survived_predict <- Survived_predict %>% mutate(tree=predict(tree, test, type = "raw"))
+Survived_predict <- Survived_predict %>% mutate(tree=predict(tree.model, test, type = "raw"))
 
+# Use random forest
+control <- trainControl(method = "cv", number = 10, p = .9) # 5 cross validation samples with .9 of data
+forest.model <- train(Survived ~ Pclass+Sex+Age, method="rf", data = train, 
+                tuneGrid = data.frame(mtry = 3),
+                ntree=15)
+
+forest.model$results
+
+Survived_predict <- Survived_predict %>% mutate(forest=predict(forest.model, test, type = "raw"))
+
+
+#### SUBMISSION #####
+submission <- Survived_predict %>% select(PassengerId,forest) %>% rename(Survived=forest)
+write.csv(submission,"C:/Users/Stephan/Documents/R/projects/proj_Titanic/submission.csv",row.names = FALSE)
 
